@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Secrets and raw API responses
+secrets/
+data/raw/
+
+# VS Code
+.vscode/
