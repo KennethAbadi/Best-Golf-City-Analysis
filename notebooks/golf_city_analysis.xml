@@ -1,0 +1,151 @@
+<VSCode.Cell language="markdown">
+# Golf City EDA — Interactive Analysis
+
+This notebook demonstrates how to load the consolidated Teeradar courses dataset, compute city-level metrics, and explore the results using interactive maps (Folium) and interactive plots (Plotly).
+
+Steps:
+- Run `scripts/consolidate_data.py` to produce `data/processed/teeradar_courses.parquet`.
+- Run `python eda/compute_city_metrics.py` to produce `data/processed/city_golf_metrics.parquet`.
+- Launch the cells below to interact with the map and charts.
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# Cell 1: Imports
+import pandas as pd
+import folium
+from folium.plugins import MarkerCluster
+import plotly.express as px
+from IPython.display import display
+
+pd.options.display.max_columns = 200
+print("Libraries loaded")
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# Cell 2: Load city metrics
+city_df = pd.read_parquet('data/processed/city_golf_metrics.parquet')
+city_df = city_df.sort_values('num_golf_courses', ascending=False)
+city_df.head()
+</VSCode.Cell>
+
+<VSCode.Cell language="markdown">
+## Interactive Folium Map
+The map centers on the mean coordinates and places clustered markers sized by number of courses and colored by average rating.
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# Cell 3: Build a Folium map
+center_lat = city_df['centroid_lat'].mean()
+center_lon = city_df['centroid_lon'].mean()
+m = folium.Map(location=[center_lat, center_lon], zoom_start=5, tiles='CartoDB positron')
+mc = MarkerCluster().add_to(m)
+for _, r in city_df.iterrows():
+    popup = folium.Popup(f"<b>{r['city']}, {r.get('state','')}</b><br/>Courses: {r['num_golf_courses']}<br/>Avg rating: {r.get('avg_rating', 'n/a')}", max_width=300)
+    folium.CircleMarker(location=[r['centroid_lat'], r['centroid_lon']], radius=4 + (r['num_golf_courses']**0.5), color='blue' if pd.isna(r.get('avg_rating')) else 'green', fill=True, popup=popup).add_to(mc)
+
+display(m)
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# Cell 3b: Folium HeatMap layer (brighter for higher score)
+from folium.plugins import HeatMap
+# prepare dataframe for heatmap (skip NaN centroids)
+heat_df = city_df.dropna(subset=['centroid_lat','centroid_lon']).copy()
+if heat_df.empty:
+    print('No centroids available for heatmap (no lat/lon in city data).')
+else:
+    # choose intensity based on 'score' if present; otherwise use inverted rank (smaller rank => brighter)
+    if 'score' in heat_df.columns:
+        vals = heat_df['score'].fillna(0).astype(float)
+        if vals.max() == vals.min():
+            weights = [1.0] * len(vals)
+        else:
+            weights = ((vals - vals.min()) / (vals.max() - vals.min())).tolist()
+    elif 'rank' in heat_df.columns:
+        ranks = heat_df['rank'].fillna(heat_df['rank'].max()).astype(float)
+        max_r = ranks.max()
+        min_r = ranks.min()
+        # invert rank so that better ranks (smaller numbers) get higher weight
+        weights = ((max_r - ranks) / (max_r - min_r + 1e-9)).tolist()
+    else:
+        weights = [1.0] * len(heat_df)
+    heat_data = [[row['centroid_lat'], row['centroid_lon'], float(w)] for row, w in zip(heat_df.to_dict('records'), weights)]
+    heatmap = HeatMap(heat_data, radius=25, blur=15, max_zoom=6)
+    # create a fresh map so we can show with heatmap
+    hm = folium.Map(location=[heat_df['centroid_lat'].mean(), heat_df['centroid_lon'].mean()], zoom_start=5, tiles='CartoDB positron')
+    folium.TileLayer('CartoDB positron').add_to(hm)
+    heatmap.add_to(hm)
+    folium.LayerControl().add_to(hm)
+    display(hm)
+
+</VSCode.Cell>
+
+<VSCode.Cell language="markdown">
+## Interactive scatter: Avg rating vs Avg distance to centroid
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# Cell 4: Plotly scatter
+fig = px.scatter(city_df, x='avg_distance_to_centroid_km', y='avg_rating', size='num_golf_courses', hover_name='city', title='Avg rating vs Avg distance to centroid')
+fig.update_layout(height=600)
+fig.show()
+</VSCode.Cell>
+
+<VSCode.Cell language="markdown">
+## Compare scoring: with and without state_golfable
+Below we compute city scores twice: 1) excluding the `state_golfable` metric and 2) including it (by passing `data/state_golfable_year_round.csv` to the scoring function). We then display two interactive bar charts and a small table showing rank changes.
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# Cell 5: (Re)load courses and import compute_metrics from the script
+import importlib.util
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("compute_city_metrics", str(Path('..') / 'eda' / 'compute_city_metrics.py'))
+compute_mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(compute_mod)
+compute_metrics = compute_mod.compute_metrics
+
+courses = pd.read_parquet('data/processed/teeradar_courses.parquet')
+
+# compute without state_golfable
+scores_no_state = compute_metrics(courses, weights=None, state_golfable_csv=None)
+# compute with state_golfable
+scores_with_state = compute_metrics(courses, weights=None, state_golfable_csv='data/state_golfable_year_round.csv')
+
+print('Top cities (including state_golfable)')
+display(scores_with_state.head(10))
+print('\nTop cities (excluding state_golfable)')
+display(scores_no_state.head(10))
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# Cell 6: Plotly bar charts (top 20) - with state_golfable
+top_n = 20
+with_state_top = scores_with_state.head(top_n).sort_values('score')
+fig1 = px.bar(with_state_top, x='score', y='city', orientation='h', color='state_golfable' if 'state_golfable' in with_state_top.columns else None, title='Top cities (score includes state_golfable)')
+fig1.update_layout(height=700, yaxis={'categoryorder':'total ascending'})
+fig1.show()
+
+# without state_golfable
+without_state_top = scores_no_state.head(top_n).sort_values('score')
+fig2 = px.bar(without_state_top, x='score', y='city', orientation='h', title='Top cities (no state_golfable)')
+fig2.update_layout(height=700, yaxis={'categoryorder':'total ascending'})
+fig2.show()
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# Cell 7: Rank change comparison
+merged = scores_with_state[['city','state','rank','score']].merge(scores_no_state[['city','state','rank','score']], on=['city','state'], suffixes=('_with','_without'))
+merged['rank_change'] = merged['rank_without'] - merged['rank_with']
+merged = merged.sort_values('rank_change', key=lambda s: s.abs(), ascending=False).head(20)
+
+from IPython.display import display
+print('Cities with largest rank change (top 20)')
+display(merged[['city','state','rank_with','rank_without','rank_change','score_with','score_without']])
+</VSCode.Cell>
+
+<VSCode.Cell language="markdown">
+## Next steps
+- Tune scoring weights and compute ranks
+- Add time-series or price analyses if tee fee data is available
+</VSCode.Cell>

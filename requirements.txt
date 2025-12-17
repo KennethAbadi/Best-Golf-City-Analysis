@@ -1,0 +1,12 @@
+pandas>=1.3
+numpy>=1.21
+geopandas
+shapely
+scikit-learn
+requests
+notebook
+matplotlib
+seaborn
+folium
+plotly
+ipywidgets

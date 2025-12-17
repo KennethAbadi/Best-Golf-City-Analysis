@@ -6,6 +6,6 @@ __pycache__/
 # Secrets and raw API responses
 secrets/
 data/raw/
-
+data/raw2/
 # VS Code
 .vscode/
