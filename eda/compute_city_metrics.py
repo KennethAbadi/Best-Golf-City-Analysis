@@ -23,10 +23,9 @@ def compute_metrics(courses_df: pd.DataFrame, weights: dict = None, state_golfab
     The function no longer depends on lat/lon. It uses columns present in the input to
     compute aggregates and a normalized weighted score. Supported source fields (if present):
     - rating (higher better)
-    - tee_fee (lower better)
     - ratings_count (higher better)
     - length_yards (higher may be preferred; depends on your preference)
-
+    - state_golfable (from external CSV; If present, better)
     Returns a DataFrame with per-city aggregates plus 'score' and 'rank'.
     """
     # drop duplicates by course_id if present
@@ -46,8 +45,6 @@ def compute_metrics(courses_df: pd.DataFrame, weights: dict = None, state_golfab
         agg_dict["avg_rating"] = ("rating", "mean")
     if "ratings_count" in courses_df.columns:
         agg_dict["sum_ratings_count"] = ("ratings_count", "sum")
-    if "tee_fee" in courses_df.columns:
-        agg_dict["median_tee_fee"] = ("tee_fee", "median")
     if "length_yards" in courses_df.columns:
         agg_dict["avg_length_yards"] = ("length_yards", "mean")
 
@@ -83,9 +80,6 @@ def compute_metrics(courses_df: pd.DataFrame, weights: dict = None, state_golfab
     invert_cols = set()  # metrics where lower is better
     if "avg_rating" in agg.columns:
         score_cols.append("avg_rating")
-    if "median_tee_fee" in agg.columns:
-        score_cols.append("median_tee_fee")
-        invert_cols.add("median_tee_fee")
     if "num_golf_courses" in agg.columns:
         score_cols.append("num_golf_courses")
     if "sum_ratings_count" in agg.columns:
@@ -96,9 +90,18 @@ def compute_metrics(courses_df: pd.DataFrame, weights: dict = None, state_golfab
         score_cols.append("state_golfable")
 
     # default weights (include state_golfable if available)
-    default_weights = {"avg_rating": 0.35, "num_golf_courses": 0.25, "median_tee_fee": 0.2, "sum_ratings_count": 0.1, "avg_length_yards": 0.0, "state_golfable": 0.1}
+    default_weights = {"avg_rating": 0.35, "num_golf_courses": 0.15, "sum_ratings_count": 0.25, "avg_length_yards": 0, "state_golfable": 0.25}
     if weights is None:
-        weights = default_weights
+        weights = default_weights.copy()
+    else:
+        weights = weights.copy()
+
+    # If state_golfable is *requested* in weights but not available in the data,
+    # redistribute that weight equally to the remaining available metrics.
+    if 'state_golfable' in weights and 'state_golfable' not in score_cols:
+        weights = {"avg_rating": 0.45, "num_golf_courses": 0.25, "sum_ratings_count": 0.3, "avg_length_yards": 0, "state_golfable": 0}
+    if weights is None:
+        weights = default_weights.copy()
 
     # keep only available weights
     weights = {k: v for k, v in weights.items() if k in score_cols}
@@ -131,8 +134,6 @@ def compute_metrics(courses_df: pd.DataFrame, weights: dict = None, state_golfab
     # rounding for readability
     if "avg_rating" in agg.columns:
         agg["avg_rating"] = agg["avg_rating"].round(2)
-    if "median_tee_fee" in agg.columns:
-        agg["median_tee_fee"] = agg["median_tee_fee"].round(2)
     if "avg_length_yards" in agg.columns:
         agg["avg_length_yards"] = agg["avg_length_yards"].round(1)
 
