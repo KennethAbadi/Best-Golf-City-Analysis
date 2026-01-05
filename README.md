@@ -2,6 +2,7 @@
 
 Analyze and rank U.S. cities for golf using Teeradar course data plus state golfability metadata. The pipeline fetches raw course pages, consolidates them, computes per-city metrics, and visualizes results in a notebook.
 
+
 ## Quickstart
 1) Install deps (Python 3.10+ recommended):
 ```bash
@@ -30,6 +31,16 @@ python eda/compute_city_metrics.py \
 5) Explore visuals and comparisons in the notebook:
 - Open notebooks/golf_city_analysis.ipynb and run all cells to see maps, heatmaps, ranking bars, and state-level tables.
 
+## Findings
+- Overall Orlando, Florida has been deemed the best city to live for golf in the US, with Scottsdale, Arizona trailing behind with only a minor difference in score.
+- I was expecting to find more cities from california to be within the top 20 best cities but based on the analysis that I have done, this wouldnt be the case. They are still well placed in the top 70 best cities though.
+- It was expected that the top 10 cities would most likely be the same regardless of whether the state is golfable year round and this was found to be true. This could not be the same for the top 10-20 cities where there was changes in their rankings due to the removal of state_golfable as a variable
+
+## Improvements
+- Provide more information with regards to tee times (Cost, General Availability) and whether or not the golf club is Private or not.
+- Find a more equal/meaningful weighing with regards to the scoring due to it being kind of arbitrary. Depends on the users wants and needs with regards to what they want in a city (preference to private/public courses, Yardage preference, etc )
+- Potentially include a radius/range that includes other cities based on how much the user is willing to commute. Example: Scottsdale and Arizona is relatively close so if the user is willing to commute then these scores would be combined/aggregated leading to a higher overall score.
+
 ## Repository layout
 - scripts/fetch_teeradar.py — fetch paginated Teeradar course data, saves raw JSON.
 - scripts/consolidate_data.py — dedupe and merge raw pages into Parquet/NDJSON/SQLite outputs.
@@ -46,13 +57,3 @@ python eda/compute_city_metrics.py \
 - For custom scoring weights, edit the `weights` argument when calling `compute_metrics` inside the notebook or script.
 
 
-## Findings
-- Overall Orlando, Florida has been deemed the best city to live for golf in the US, with Scottsdale, Arizona trailing behind with only a minor difference in score.
-- I was expecting to find more cities from california to be within the top 20 best cities but based on the analysis that I have done, this wouldnt be the case. They are still well placed in the top 70 best cities though.
-- It was expected that the top 10 cities would most likely be the same regardless of whether the state is golfable year round and this was found to be true. This could not be the same for the top 10-20 cities where there was changes in their rankings due to the removal of state_golfable as a variable
--
-
-## Improvements
-- Provide more information with regards to tee times (Cost, General Availability) and whether or not the golf club is Private or not.
-- Find a more equal/meaningful weighing with regards to the scoring due to it being kind of arbitrary. Depends on the users wants and needs with regards to what they want in a city (preference to private/public courses, Yardage preference, etc )
-- Potentially include a radius/range that includes other cities based on how much the user is willing to commute. Example: Scottsdale and Arizona is relatively close so if the user is willing to commute then these scores would be combined/aggregated leading to a higher overall score.
