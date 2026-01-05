@@ -90,7 +90,7 @@ def compute_metrics(courses_df: pd.DataFrame, weights: dict = None, state_golfab
         score_cols.append("state_golfable")
 
     # default weights (include state_golfable if available)
-    default_weights = {"avg_rating": 0.35, "num_golf_courses": 0.15, "sum_ratings_count": 0.25, "avg_length_yards": 0, "state_golfable": 0.25}
+    default_weights = {"avg_rating": 0.25, "num_golf_courses": 0.15, "sum_ratings_count": 0.25, "avg_length_yards": 0, "state_golfable": 0.3}
     if weights is None:
         weights = default_weights.copy()
     else:
@@ -99,7 +99,7 @@ def compute_metrics(courses_df: pd.DataFrame, weights: dict = None, state_golfab
     # If state_golfable is *requested* in weights but not available in the data,
     # redistribute that weight equally to the remaining available metrics.
     if 'state_golfable' in weights and 'state_golfable' not in score_cols:
-        weights = {"avg_rating": 0.45, "num_golf_courses": 0.25, "sum_ratings_count": 0.3, "avg_length_yards": 0, "state_golfable": 0}
+        weights = {"avg_rating": 0.35, "num_golf_courses": 0.3, "sum_ratings_count": 0.35, "avg_length_yards": 0, "state_golfable": 0}
     if weights is None:
         weights = default_weights.copy()
 
