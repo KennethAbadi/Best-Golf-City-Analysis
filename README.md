@@ -55,5 +55,3 @@ python eda/compute_city_metrics.py \
 - State metrics in the notebook aggregate total courses and ratings counts, compute average rating, and add an aggregate score combining volume and quality.
 - If you re-run fetching, clear or version `data/raw` to avoid mixing datasets.
 - For custom scoring weights, edit the `weights` argument when calling `compute_metrics` inside the notebook or script.
-
-
